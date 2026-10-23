@@ -5038,6 +5038,7 @@
     "Recalculated from tokens: tokens {{tokens}}, model ratio {{model_ratio}}, group ratio {{group_ratio}}, other multiplier {{other_multiplier}}": "按 token 重算：tokens {{tokens}}，模型倍率 {{model_ratio}}，分组倍率 {{group_ratio}}，其他倍数 {{other_multiplier}}",
     "Received": "获得",
     "Received amount": "已收额度",
+    "Receiving": "接收中",
     "Recent maintenance tasks running across instances and their execution status.": "跨实例运行的近期维护任务及其执行状态。",
     "Recent success-rate samples; gray bars indicate missing data.": "近期成功率采样；灰色条表示暂无数据。",
     "Recently completed or failed system task runs.": "最近已完成或失败的系统任务运行记录。",

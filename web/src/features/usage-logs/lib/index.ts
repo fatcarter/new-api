@@ -51,7 +51,15 @@ export {
 } from './utils'
 
 // Status mapper utilities
-export { createStatusMapper } from './status'
+export { createStatusMapper, resolveLogStatusBadge } from './status'
+
+// Polling cadence for the log list
+export {
+  PENDING_LOGS_POLL_INTERVAL_MS,
+  IDLE_LOGS_POLL_INTERVAL_MS,
+  hasPendingLogs,
+  resolveLogsRefetchInterval,
+} from './polling'
 
 // Mappers
 export {

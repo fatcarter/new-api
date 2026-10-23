@@ -338,20 +338,40 @@ it('shows loading placeholders without displaying stale log fields', () => {
   ).not.toBeInTheDocument()
 })
 
-it('marks an in-flight log and shows its growing first-token and duration figures', () => {
+it('marks a waiting in-flight log and shows its growing duration', () => {
   renderLogs({
     logs: [
       {
         ...log,
         pending: true,
+        pending_stage: 'waiting',
         is_stream: true,
         use_time: 12,
-        other: JSON.stringify({ frt: 12345 }),
+        other: JSON.stringify({ pending_elapsed_ms: 12000 }),
       },
     ],
   })
 
-  expect(screen.getByText('In Progress')).toBeVisible()
-  expect(screen.getByText('12.3s')).toBeVisible()
+  expect(screen.getByText('Waiting')).toBeVisible()
+  expect(screen.getByText('N/A')).toBeVisible()
+  expect(screen.getByText('12.0s')).toBeVisible()
+})
+
+it('marks a streaming in-flight log with its first-token latency', () => {
+  renderLogs({
+    logs: [
+      {
+        ...log,
+        pending: true,
+        pending_stage: 'streaming',
+        is_stream: true,
+        use_time: 12,
+        other: JSON.stringify({ frt: 3000, pending_elapsed_ms: 12000 }),
+      },
+    ],
+  })
+
+  expect(screen.getByText('Receiving')).toBeVisible()
+  expect(screen.getByText('3.0s')).toBeVisible()
   expect(screen.getByText('12.0s')).toBeVisible()
 })

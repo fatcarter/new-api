@@ -154,6 +154,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	// The in-flight row disappears once the request is over; the final consume
 	// or error log has already been written by then.
 	defer model.FinishPendingLog(requestId)
+	// The row switches from waiting to streaming when the upstream's first byte
+	// arrives; the in-memory store only keeps the earliest signal.
+	relayInfo.OnFirstResponse = func() { model.MarkPendingLogFirstByte(requestId) }
 
 	generalSettings := operation_setting.GetGeneralSetting()
 	if relayFormat == types.RelayFormatClaude && relayInfo.IsStream && generalSettings.PingIntervalEnabled {

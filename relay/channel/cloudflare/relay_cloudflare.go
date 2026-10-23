@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
@@ -66,7 +65,7 @@ func cfStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Res
 		err = helper.ObjectData(c, response)
 		if isFirst {
 			isFirst = false
-			info.FirstResponseTime = time.Now()
+			info.SetFirstResponseTime()
 		}
 		if err != nil {
 			logger.LogError(c, common.LogText("error_rendering_stream_response: %s", err.Error()))

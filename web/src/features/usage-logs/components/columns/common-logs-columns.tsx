@@ -22,7 +22,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { GroupBadge } from '@/components/group-badge'
-import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
+import { StatusBadge } from '@/components/status-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Popover,
@@ -66,10 +66,10 @@ import {
   renderAuditContent,
   renderLogContent,
 } from '../../lib/format'
+import { resolveLogStatusBadge } from '../../lib/status'
 import {
   isDisplayableLogType,
   isTimingLogType,
-  getLogTypeConfig,
   isPerCallBilling,
 } from '../../lib/utils'
 import type { LogOtherData } from '../../types'
@@ -363,7 +363,7 @@ export function useCommonLogsColumns(
         cell: ({ row }) => {
           const log = row.original
           const timestamp = row.getValue('created_at') as number
-          const config = getLogTypeConfig(log.type)
+          const badge = resolveLogStatusBadge(log, t)
 
           return (
             <div className='flex min-w-0 flex-col gap-0.5'>
@@ -371,12 +371,8 @@ export function useCommonLogsColumns(
                 {formatTimestampToDate(timestamp)}
               </span>
               <StatusBadge
-                label={log.pending ? t('In Progress') : t(config.label)}
-                variant={
-                  log.pending
-                    ? 'info'
-                    : (config.color as StatusBadgeProps['variant'])
-                }
+                label={badge.label}
+                variant={badge.variant}
                 pulse={log.pending}
                 size='sm'
                 copyable={false}
@@ -815,6 +811,7 @@ export function useCommonLogsColumns(
               frtMs={other?.frt}
               isStream={log.is_stream}
               pending={log.pending}
+              pendingElapsedMs={other?.pending_elapsed_ms}
             />
           )
         },

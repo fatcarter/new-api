@@ -16,7 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { StatusBadgeProps } from '@/components/status-badge'
+import type { StatusBadgeProps, StatusVariant } from '@/components/status-badge'
+
+import type { UsageLog } from '../data/schema'
+import { getLogTypeConfig } from './utils'
 
 /**
  * Generic status mapping utility
@@ -35,5 +38,32 @@ export function createStatusMapper<T extends string>(mapping: {
     ): StatusBadgeProps['variant'] => {
       return mapping[status as T]?.variant ?? defaultVariant
     },
+  }
+}
+
+export interface LogStatusPresentation {
+  label: string
+  variant: StatusVariant
+}
+
+/**
+ * Finished rows describe the log type; in-flight rows describe how far the
+ * request has progressed, because their type is always "consume" until the
+ * final row is written.
+ */
+export function resolveLogStatusBadge(
+  log: Pick<UsageLog, 'pending' | 'pending_stage' | 'type'>,
+  translate: (key: string) => string
+): LogStatusPresentation {
+  if (log.pending) {
+    if (log.pending_stage === 'streaming') {
+      return { label: translate('Receiving'), variant: 'info' }
+    }
+    return { label: translate('Waiting'), variant: 'neutral' }
+  }
+  const config = getLogTypeConfig(log.type)
+  return {
+    label: translate(config.label),
+    variant: config.color as StatusVariant,
   }
 }

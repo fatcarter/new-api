@@ -5038,6 +5038,7 @@
     "Recalculated from tokens: tokens {{tokens}}, model ratio {{model_ratio}}, group ratio {{group_ratio}}, other multiplier {{other_multiplier}}": "Recalculated from tokens: tokens {{tokens}}, model ratio {{model_ratio}}, group ratio {{group_ratio}}, other multiplier {{other_multiplier}}",
     "Received": "Received",
     "Received amount": "Received amount",
+    "Receiving": "Receiving",
     "Recent maintenance tasks running across instances and their execution status.": "Recent maintenance tasks running across instances and their execution status.",
     "Recent success-rate samples; gray bars indicate missing data.": "Recent success-rate samples; gray bars indicate missing data.",
     "Recently completed or failed system task runs.": "Recently completed or failed system task runs.",

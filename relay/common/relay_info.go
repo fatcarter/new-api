@@ -91,6 +91,10 @@ type RelayInfo struct {
 	StartTime         time.Time
 	FirstResponseTime time.Time
 	isFirstResponse   bool
+	// OnFirstResponse runs once when the first upstream response arrives. The
+	// host uses it to report progress for the in-flight usage-log row; it is
+	// nil when no observer is registered.
+	OnFirstResponse func()
 	//SendLastReasoningResponse bool
 	IsStream               bool
 	IsGeminiBatchEmbedding bool
@@ -1001,6 +1005,9 @@ func (info *RelayInfo) SetFirstResponseTime() {
 	if info.isFirstResponse {
 		info.FirstResponseTime = time.Now()
 		info.isFirstResponse = false
+		if info.OnFirstResponse != nil {
+			info.OnFirstResponse()
+		}
 	}
 }
 

@@ -45,6 +45,7 @@ import {
 import { shouldShowBillingSource } from '../lib/billing-source'
 import { useColumnsByCategory } from '../lib/columns'
 import { parseLogOther } from '../lib/format'
+import { hasPendingLogs, resolveLogsRefetchInterval } from '../lib/polling'
 import { fetchLogsByCategory } from '../lib/utils'
 import type { LogCategory } from '../types'
 import { CommonLogsFilterBar } from './common-logs-filter-bar'
@@ -201,9 +202,17 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       }
       return undefined
     },
-    // In-flight logs keep growing, so poll the common list while auto refresh
-    // is on.
-    refetchInterval: autoRefresh && logCategory === 'common' ? 1000 : false,
+    // In-flight rows keep growing, so poll while any rendered row is in
+    // flight, even with auto refresh off; otherwise poll slowly for new
+    // requests. `refetchIntervalInBackground: false` pauses both cadences
+    // while the tab is hidden.
+    refetchInterval: (query) =>
+      logCategory === 'common'
+        ? resolveLogsRefetchInterval({
+            hasPendingLogs: hasPendingLogs(query.state.data?.items ?? []),
+            autoRefresh,
+          })
+        : false,
     refetchIntervalInBackground: false,
   })
 
@@ -236,6 +245,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   })
 
   const isCommon = logCategory === 'common'
+  const hasPendingRows = isCommon && hasPendingLogs(logs)
 
   return (
     <DataTablePage
@@ -243,7 +253,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       compactPagination={isMobile && isCommon}
       columns={columns as ColumnDef<Record<string, unknown>>[]}
       isLoading={isLoadingData}
-      isFetching={isFetching && !(autoRefresh && logCategory === 'common')}
+      isFetching={isFetching && !(isCommon && (autoRefresh || hasPendingRows))}
       emptyTitle={t('No Logs Found')}
       emptyDescription={t(
         'No usage logs available. Logs will appear here once API calls are made.'

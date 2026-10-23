@@ -51,7 +51,7 @@ const barColorMap: Record<StatusVariant, string> = {
   neutral: 'bg-neutral/80',
 }
 
-const ANIMATION_DURATION_MS = 800
+const LIVE_FRACTION_DIGITS = 2
 
 function prefersReducedMotion(): boolean {
   return (
@@ -61,46 +61,57 @@ function prefersReducedMotion(): boolean {
 }
 
 /**
- * Renders a duration that eases from its previous value to the current one.
- * While an in-flight request is polled every second, this keeps the growing
- * timing figures moving instead of stepping once per refresh.
+ * A duration that advances on every animation frame while a request is in
+ * flight, so it keeps moving between one-second list polls instead of
+ * stepping once per refresh.
+ *
+ * `seconds` is the latest server snapshot, which carries millisecond precision
+ * for in-flight rows. The clock re-anchors on every snapshot and never moves
+ * backwards: a snapshot that arrives a little late (or coarser than the local
+ * estimate) must not make the number stutter.
  */
-function AnimatedTime(props: {
+function LiveSeconds(props: {
   seconds: number
-  animate: boolean
+  live: boolean
   className?: string
 }) {
-  const animate = props.animate && !prefersReducedMotion()
+  const animate = props.live && !prefersReducedMotion()
   const [display, setDisplay] = useState(props.seconds)
-  const displayedRef = useRef(props.seconds)
+  const shownRef = useRef(props.seconds)
+  const anchorRef = useRef<{ seconds: number; at: number } | null>(null)
 
   useEffect(() => {
-    const to = props.seconds
+    anchorRef.current = { seconds: props.seconds, at: performance.now() }
     if (!animate) {
-      displayedRef.current = to
-      return
+      shownRef.current = props.seconds
     }
-    const from = displayedRef.current
-    if (from === to) return
+  }, [props.seconds, animate])
+
+  useEffect(() => {
+    if (!animate) return
     let frame = 0
-    const start = performance.now()
-    const tick = (now: number) => {
-      const progress = Math.min((now - start) / ANIMATION_DURATION_MS, 1)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      const value = from + (to - from) * eased
-      displayedRef.current = value
-      setDisplay(value)
-      if (progress < 1) {
-        frame = requestAnimationFrame(tick)
+    const tick = () => {
+      const anchor = anchorRef.current
+      if (anchor) {
+        const next = Math.max(
+          shownRef.current,
+          anchor.seconds + (performance.now() - anchor.at) / 1000
+        )
+        shownRef.current = next
+        setDisplay(next)
       }
+      frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [props.seconds, animate])
+  }, [animate])
 
   return (
     <span className={cn('tabular-nums', props.className)}>
-      {formatUseTime(animate ? display : props.seconds)}
+      {formatUseTime(
+        animate ? display : props.seconds,
+        animate ? LIVE_FRACTION_DIGITS : undefined
+      )}
     </span>
   )
 }
@@ -110,8 +121,14 @@ interface TimingMetricsCellProps {
   completionTokens: number
   frtMs?: number
   isStream: boolean
-  /** The request is still in flight, so both figures keep growing. */
+  /** The request is still in flight, so the duration keeps growing. */
   pending?: boolean
+  /**
+   * Milliseconds elapsed when the in-flight snapshot was produced. It is the
+   * anchor for the live duration clock; without it the clock falls back to the
+   * whole-second duration.
+   */
+  pendingElapsedMs?: number | null
   className?: string
   /**
    * `bar` (default) draws a full-height color segment beside the labels,
@@ -130,11 +147,17 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
   const firstTokenSeconds =
     props.frtMs != null && props.frtMs > 0 ? props.frtMs / 1000 : null
   const pending = props.pending ?? false
+  const pendingElapsedSeconds =
+    pending && props.pendingElapsedMs != null && props.pendingElapsedMs >= 0
+      ? props.pendingElapsedMs / 1000
+      : null
   let firstTokenVariant: StatusVariant = 'neutral'
-  if (pending) {
-    firstTokenVariant = 'info'
-  } else if (firstTokenSeconds != null) {
+  if (firstTokenSeconds != null) {
+    // Once the first byte has arrived the first-token latency is fixed and can
+    // be colored by its own threshold, even while the response is streaming.
     firstTokenVariant = getFirstResponseTimeColor(firstTokenSeconds)
+  } else if (pending) {
+    firstTokenVariant = 'info'
   }
   let totalTimeVariant: StatusVariant = 'info'
   if (!pending) {
@@ -173,11 +196,11 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
               {t('N/A')}
             </span>
           ) : (
-            <AnimatedTime
-              seconds={firstTokenSeconds}
-              animate={pending}
-              className={textColorMap[firstTokenVariant]}
-            />
+            <span
+              className={cn('tabular-nums', textColorMap[firstTokenVariant])}
+            >
+              {formatUseTime(firstTokenSeconds)}
+            </span>
           )}
         </div>
       )}
@@ -192,9 +215,9 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
           />
         )}
         <span className='text-muted-foreground shrink-0'>{t('Duration')}</span>
-        <AnimatedTime
-          seconds={props.useTimeSec}
-          animate={pending}
+        <LiveSeconds
+          seconds={pendingElapsedSeconds ?? props.useTimeSec}
+          live={pending}
           className={textColorMap[totalTimeVariant]}
         />
       </div>

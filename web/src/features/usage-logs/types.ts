@@ -215,6 +215,12 @@ export interface LogOtherData {
   audio_ratio?: number
   audio_completion_ratio?: number
   frt?: number
+  /**
+   * Milliseconds elapsed since the request started. Only set on in-flight rows:
+   * it is the millisecond-precision anchor that lets the client keep a smooth
+   * duration clock between one-second list refreshes.
+   */
+  pending_elapsed_ms?: number
   // Tiered (expression-based) billing fields, set by backend when
   // billing_mode === 'tiered_expr'. expr_b64 is the base64-encoded billing
   // expression; the matched tier and request-rule traces come from the actual

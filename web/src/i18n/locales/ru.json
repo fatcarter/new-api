@@ -5038,6 +5038,7 @@
     "Recalculated from tokens: tokens {{tokens}}, model ratio {{model_ratio}}, group ratio {{group_ratio}}, other multiplier {{other_multiplier}}": "Пересчитано по токенам: токены {{tokens}}, коэффициент модели {{model_ratio}}, коэффициент группы {{group_ratio}}, прочий множитель {{other_multiplier}}",
     "Received": "Получено",
     "Received amount": "Полученная сумма",
+    "Receiving": "Получение",
     "Recent maintenance tasks running across instances and their execution status.": "Недавние задачи обслуживания, выполняемые на всех экземплярах, и их статус выполнения.",
     "Recent success-rate samples; gray bars indicate missing data.": "Последние замеры успешности запросов; серые полоски означают отсутствие данных.",
     "Recently completed or failed system task runs.": "Недавние запуски системных задач, завершенные или завершившиеся с ошибкой.",

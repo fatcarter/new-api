@@ -79,6 +79,9 @@ type Log struct {
 	// Pending marks a request that is still in flight. Pending rows are never
 	// stored; the list API merges them in from the in-memory pending log store.
 	Pending bool `json:"pending,omitempty" gorm:"-"`
+	// PendingStage is "waiting" until the upstream sends its first byte and
+	// "streaming" afterwards. It is empty for finished requests.
+	PendingStage PendingStage `json:"pending_stage,omitempty" gorm:"-"`
 }
 
 // don't use iota, avoid change log type value

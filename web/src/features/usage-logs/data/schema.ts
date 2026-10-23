@@ -47,6 +47,11 @@ export const usageLogSchema = z.object({
   upstream_request_id: z.string().default(''),
   /** An in-flight request: the timing columns grow until it completes. */
   pending: z.boolean().optional(),
+  /**
+   * How far an in-flight request has progressed. `waiting` means the upstream
+   * has not answered yet; `streaming` means the first byte has arrived.
+   */
+  pending_stage: z.enum(['waiting', 'streaming']).nullish(),
 })
 
 export type UsageLog = z.infer<typeof usageLogSchema>

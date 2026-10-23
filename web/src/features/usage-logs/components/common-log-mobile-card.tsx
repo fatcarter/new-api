@@ -24,7 +24,7 @@ import { useTranslation } from 'react-i18next'
 import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
 import { GroupBadge } from '@/components/group-badge'
-import { StatusBadge, type StatusVariant } from '@/components/status-badge'
+import { StatusBadge } from '@/components/status-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
@@ -33,11 +33,8 @@ import { formatLogQuota, formatTimestampToDate } from '@/lib/format'
 
 import type { UsageLog } from '../data/schema'
 import { formatModelName, logTokenName, parseLogOther } from '../lib/format'
-import {
-  getLogTypeConfig,
-  isDisplayableLogType,
-  isTimingLogType,
-} from '../lib/utils'
+import { resolveLogStatusBadge } from '../lib/status'
+import { isDisplayableLogType, isTimingLogType } from '../lib/utils'
 import { ModelBadge, ResponseModelDetails } from './model-badge'
 import { StreamTpsCell, TimingMetricsCell } from './timing-metrics-cell'
 import { useUsageLogsContext } from './usage-logs-provider'
@@ -70,7 +67,7 @@ export function CommonLogMobileCard<TData>(props: {
   const displayable = isDisplayableLogType(log.type)
   const timing = isTimingLogType(log.type)
   const model = formatModelName(log)
-  const config = getLogTypeConfig(log.type)
+  const statusBadge = resolveLogStatusBadge(log, t)
   const group = log.group || other?.group || ''
   const groupRatio =
     other?.user_group_ratio != null && other.user_group_ratio !== -1
@@ -168,8 +165,8 @@ export function CommonLogMobileCard<TData>(props: {
         {fields.time.visible && (
           <div className='flex min-w-0 flex-col items-start justify-between gap-1'>
             <StatusBadge
-              label={log.pending ? t('In Progress') : t(config.label)}
-              variant={log.pending ? 'info' : (config.color as StatusVariant)}
+              label={statusBadge.label}
+              variant={statusBadge.variant}
               pulse={log.pending}
               copyable={false}
               showDot
@@ -211,6 +208,7 @@ export function CommonLogMobileCard<TData>(props: {
                   frtMs={other?.frt}
                   isStream={log.is_stream}
                   pending={log.pending}
+                  pendingElapsedMs={other?.pending_elapsed_ms}
                   indicator='dot'
                   compact
                   className='min-h-6 max-w-full min-w-0 items-center justify-end [&>div]:justify-end'

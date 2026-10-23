@@ -253,10 +253,14 @@ export function formatTokens(tokens: number): string {
 }
 
 /**
- * Format use time in seconds with appropriate unit
+ * Format use time in seconds with appropriate unit.
+ *
+ * `fractionDigits` controls the sub-minute precision. The default keeps the
+ * stable one-decimal display; a live in-flight clock asks for two so the
+ * hundredths place can advance smoothly between polls.
  */
-export function formatUseTime(seconds: number): string {
-  if (seconds < 60) return `${seconds.toFixed(1)}s`
+export function formatUseTime(seconds: number, fractionDigits = 1): string {
+  if (seconds < 60) return `${seconds.toFixed(fractionDigits)}s`
   const minutes = Math.floor(seconds / 60)
   const remainingSeconds = seconds % 60
   return `${minutes}m ${remainingSeconds.toFixed(0)}s`

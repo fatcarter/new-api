@@ -30,6 +30,16 @@ type PendingLogParams struct {
 	StartedAt   int64 // Unix seconds; the downstream request start time
 }
 
+// PendingStage reports how far an in-flight request has progressed. The usage
+// log list uses it to distinguish "still waiting for the upstream" from
+// "already streaming the response".
+type PendingStage string
+
+const (
+	PendingStageWaiting   PendingStage = "waiting"
+	PendingStageStreaming PendingStage = "streaming"
+)
+
 type pendingLogEntry struct {
 	requestId   string
 	userId      int
@@ -43,6 +53,9 @@ type pendingLogEntry struct {
 	isStream    bool
 	requestPath string
 	startedAt   int64
+	// firstByteAt is the Unix millisecond timestamp of the upstream's first
+	// response byte; zero while the request is still waiting.
+	firstByteAt int64
 }
 
 // pendingLogs is per-process: when several gateway instances serve the same
@@ -98,6 +111,23 @@ func FinishPendingLog(requestId string) {
 	pendingLogs.Lock()
 	delete(pendingLogs.entries, requestId)
 	pendingLogs.Unlock()
+}
+
+// MarkPendingLogFirstByte records that the upstream has started answering, so
+// the row can switch from waiting to streaming. The first byte wins: later
+// chunks and retries cannot move the first-token latency.
+func MarkPendingLogFirstByte(requestId string) {
+	if requestId == "" {
+		return
+	}
+	now := time.Now().UnixMilli()
+	pendingLogs.Lock()
+	defer pendingLogs.Unlock()
+	entry, ok := pendingLogs.entries[requestId]
+	if !ok || entry.firstByteAt != 0 {
+		return
+	}
+	entry.firstByteAt = now
 }
 
 // ListPendingLogs returns in-flight logs matching the usage-log search. A zero
@@ -191,31 +221,41 @@ func matchesLogTextFilter(value string, filter string) bool {
 }
 
 func (e *pendingLogEntry) toLog(now time.Time) *Log {
-	elapsedMs := max(now.UnixMilli()-e.startedAt*1000, 0)
+	startedAtMs := e.startedAt * 1000
+	elapsedMs := max(now.UnixMilli()-startedAtMs, 0)
 	other := NewLogOther()
-	// While the request is in flight the first-token latency and duration are
-	// both the elapsed time: neither is known until the request completes.
-	other.SetPublic("frt", float64(elapsedMs))
+	// The list refreshes once per second while a row is in flight, so the
+	// millisecond elapsed time lets the client keep a smooth clock between
+	// refreshes instead of stepping once per poll.
+	other.SetPublic("pending_elapsed_ms", float64(elapsedMs))
+	// The first-token latency is only known once the upstream has answered;
+	// before that the row is still waiting and the client shows N/A.
+	stage := PendingStageWaiting
+	if e.firstByteAt != 0 {
+		stage = PendingStageStreaming
+		other.SetPublic("frt", float64(max(e.firstByteAt-startedAtMs, 0)))
+	}
 	if e.requestPath != "" {
 		other.SetPublic("request_path", e.requestPath)
 	}
 	return &Log{
-		Id:          pendingLogDisplayId(e.requestId),
-		UserId:      e.userId,
-		Username:    e.username,
-		CreatedAt:   e.startedAt,
-		Type:        LogTypeConsume,
-		TokenName:   e.tokenName,
-		ModelName:   e.modelName,
-		UseTime:     int(elapsedMs / 1000),
-		IsStream:    e.isStream,
-		ChannelId:   e.channelId,
-		ChannelName: e.channelName,
-		TokenId:     e.tokenId,
-		Group:       e.group,
-		RequestId:   e.requestId,
-		Other:       other.JSONString(),
-		Pending:     true,
+		Id:           pendingLogDisplayId(e.requestId),
+		UserId:       e.userId,
+		Username:     e.username,
+		CreatedAt:    e.startedAt,
+		Type:         LogTypeConsume,
+		TokenName:    e.tokenName,
+		ModelName:    e.modelName,
+		UseTime:      int(elapsedMs / 1000),
+		IsStream:     e.isStream,
+		ChannelId:    e.channelId,
+		ChannelName:  e.channelName,
+		TokenId:      e.tokenId,
+		Group:        e.group,
+		RequestId:    e.requestId,
+		Other:        other.JSONString(),
+		Pending:      true,
+		PendingStage: stage,
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,7 +38,9 @@ func TestListPendingLogsMergesInFlightRequests(t *testing.T) {
 	assert.Equal(t, startedAt, log.CreatedAt)
 	assert.GreaterOrEqual(t, log.UseTime, 5)
 	assert.Negative(t, log.Id)
-	assert.Contains(t, log.Other, `"frt"`)
+	assert.Equal(t, PendingStageWaiting, log.PendingStage)
+	assert.Contains(t, log.Other, `"pending_elapsed_ms"`)
+	assert.NotContains(t, log.Other, `"frt"`)
 	assert.Contains(t, log.Other, `"request_path"`)
 
 	assert.Empty(t, ListPendingLogs(LogFilter{}, 8))
@@ -66,4 +69,38 @@ func TestRegisterPendingLogKeepsStartTimeAcrossRetries(t *testing.T) {
 	require.Len(t, logs, 1)
 	assert.Equal(t, firstStart, logs[0].CreatedAt)
 	assert.Equal(t, 22, logs[0].ChannelId)
+}
+
+func TestMarkPendingLogFirstByteStartsStreamingStage(t *testing.T) {
+	requestId := "pending-log-test-first-byte"
+	startedAt := time.Now().Add(-3 * time.Second).Unix()
+	RegisterPendingLog(PendingLogParams{
+		RequestId: requestId,
+		UserId:    9,
+		ModelName: "claude-sonnet",
+		IsStream:  true,
+		StartedAt: startedAt,
+	})
+	t.Cleanup(func() { FinishPendingLog(requestId) })
+
+	waiting := ListPendingLogs(LogFilter{}, 9)
+	require.Len(t, waiting, 1)
+	require.Equal(t, PendingStageWaiting, waiting[0].PendingStage)
+
+	MarkPendingLogFirstByte(requestId)
+	streaming := ListPendingLogs(LogFilter{}, 9)
+	require.Len(t, streaming, 1)
+	assert.Equal(t, PendingStageStreaming, streaming[0].PendingStage)
+	assert.Contains(t, streaming[0].Other, `"frt"`)
+
+	// A later signal must not move the first-token latency.
+	var streamingOther map[string]any
+	require.NoError(t, common.UnmarshalJsonStr(streaming[0].Other, &streamingOther))
+	firstFrt := streamingOther["frt"]
+	MarkPendingLogFirstByte(requestId)
+	again := ListPendingLogs(LogFilter{}, 9)
+	require.Len(t, again, 1)
+	var againOther map[string]any
+	require.NoError(t, common.UnmarshalJsonStr(again[0].Other, &againOther))
+	assert.Equal(t, firstFrt, againOther["frt"])
 }
