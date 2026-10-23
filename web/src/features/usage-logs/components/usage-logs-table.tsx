@@ -50,7 +50,11 @@ import type { LogCategory } from '../types'
 import { CommonLogsFilterBar } from './common-logs-filter-bar'
 import { TaskLogsFilterBar } from './task-logs-filter-bar'
 import { UsageLogsMobileList } from './usage-logs-mobile-card'
-import { useLogsViewScope, type LogsViewAccess } from './usage-logs-provider'
+import {
+  useLogsViewScope,
+  useUsageLogsContext,
+  type LogsViewAccess,
+} from './usage-logs-provider'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
 
@@ -96,6 +100,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     viewAccess,
   } = useLogsViewScope()
   const isMobile = useMediaQuery('(max-width: 640px)')
+  const { autoRefresh } = useUsageLogsContext()
   const searchParams = route.useSearch()
   const userId = useAuthStore((state) => state.auth.user?.id)
   const { data: showBillingSource = false } = useQuery({
@@ -196,6 +201,10 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       }
       return undefined
     },
+    // In-flight logs keep growing, so poll the common list while auto refresh
+    // is on.
+    refetchInterval: autoRefresh && logCategory === 'common' ? 1000 : false,
+    refetchIntervalInBackground: false,
   })
 
   const logs = data?.items || []
@@ -217,6 +226,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     ),
     pagination,
     enableRowSelection: false,
+    getRowId: (row) => String(row.id),
     onPaginationChange,
     onColumnFiltersChange,
     manualPagination: true,
@@ -233,7 +243,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       compactPagination={isMobile && isCommon}
       columns={columns as ColumnDef<Record<string, unknown>>[]}
       isLoading={isLoadingData}
-      isFetching={isFetching}
+      isFetching={isFetching && !(autoRefresh && logCategory === 'common')}
       emptyTitle={t('No Logs Found')}
       emptyDescription={t(
         'No usage logs available. Logs will appear here once API calls are made.'

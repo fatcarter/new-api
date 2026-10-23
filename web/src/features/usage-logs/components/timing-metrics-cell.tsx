@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { CircleAlert } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -50,11 +51,67 @@ const barColorMap: Record<StatusVariant, string> = {
   neutral: 'bg-neutral/80',
 }
 
+const ANIMATION_DURATION_MS = 800
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+}
+
+/**
+ * Renders a duration that eases from its previous value to the current one.
+ * While an in-flight request is polled every second, this keeps the growing
+ * timing figures moving instead of stepping once per refresh.
+ */
+function AnimatedTime(props: {
+  seconds: number
+  animate: boolean
+  className?: string
+}) {
+  const animate = props.animate && !prefersReducedMotion()
+  const [display, setDisplay] = useState(props.seconds)
+  const displayedRef = useRef(props.seconds)
+
+  useEffect(() => {
+    const to = props.seconds
+    if (!animate) {
+      displayedRef.current = to
+      return
+    }
+    const from = displayedRef.current
+    if (from === to) return
+    let frame = 0
+    const start = performance.now()
+    const tick = (now: number) => {
+      const progress = Math.min((now - start) / ANIMATION_DURATION_MS, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      const value = from + (to - from) * eased
+      displayedRef.current = value
+      setDisplay(value)
+      if (progress < 1) {
+        frame = requestAnimationFrame(tick)
+      }
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [props.seconds, animate])
+
+  return (
+    <span className={cn('tabular-nums', props.className)}>
+      {formatUseTime(animate ? display : props.seconds)}
+    </span>
+  )
+}
+
 interface TimingMetricsCellProps {
   useTimeSec: number
   completionTokens: number
   frtMs?: number
   isStream: boolean
+  /** The request is still in flight, so both figures keep growing. */
+  pending?: boolean
   className?: string
   /**
    * `bar` (default) draws a full-height color segment beside the labels,
@@ -72,17 +129,20 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
   const showFirstToken = props.isStream
   const firstTokenSeconds =
     props.frtMs != null && props.frtMs > 0 ? props.frtMs / 1000 : null
-  const firstTokenVariant: StatusVariant =
-    firstTokenSeconds == null
-      ? 'neutral'
-      : getFirstResponseTimeColor(firstTokenSeconds)
-  const totalTimeVariant = getResponseTimeColor(
-    props.useTimeSec,
-    props.completionTokens
-  )
-  const firstTokenLabel =
-    firstTokenSeconds == null ? t('N/A') : formatUseTime(firstTokenSeconds)
-  const totalTimeLabel = formatUseTime(props.useTimeSec)
+  const pending = props.pending ?? false
+  let firstTokenVariant: StatusVariant = 'neutral'
+  if (pending) {
+    firstTokenVariant = 'info'
+  } else if (firstTokenSeconds != null) {
+    firstTokenVariant = getFirstResponseTimeColor(firstTokenSeconds)
+  }
+  let totalTimeVariant: StatusVariant = 'info'
+  if (!pending) {
+    totalTimeVariant = getResponseTimeColor(
+      props.useTimeSec,
+      props.completionTokens
+    )
+  }
 
   const labels = (
     <div
@@ -106,9 +166,19 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
           <span className='text-muted-foreground shrink-0'>
             {t('First token')}
           </span>
-          <span className={cn('tabular-nums', textColorMap[firstTokenVariant])}>
-            {firstTokenLabel}
-          </span>
+          {firstTokenSeconds == null ? (
+            <span
+              className={cn('tabular-nums', textColorMap[firstTokenVariant])}
+            >
+              {t('N/A')}
+            </span>
+          ) : (
+            <AnimatedTime
+              seconds={firstTokenSeconds}
+              animate={pending}
+              className={textColorMap[firstTokenVariant]}
+            />
+          )}
         </div>
       )}
       <div className='flex items-baseline gap-1.5'>
@@ -122,9 +192,11 @@ export function TimingMetricsCell(props: TimingMetricsCellProps) {
           />
         )}
         <span className='text-muted-foreground shrink-0'>{t('Duration')}</span>
-        <span className={cn('tabular-nums', textColorMap[totalTimeVariant])}>
-          {totalTimeLabel}
-        </span>
+        <AnimatedTime
+          seconds={props.useTimeSec}
+          animate={pending}
+          className={textColorMap[totalTimeVariant]}
+        />
       </div>
     </div>
   )

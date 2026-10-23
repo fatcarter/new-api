@@ -76,6 +76,9 @@ type Log struct {
 	RequestId         string `json:"request_id,omitempty" gorm:"type:varchar(64);index:idx_logs_request_id;default:''"`
 	UpstreamRequestId string `json:"upstream_request_id,omitempty" gorm:"type:varchar(128);index:idx_logs_upstream_request_id;default:''"`
 	Other             string `json:"other"`
+	// Pending marks a request that is still in flight. Pending rows are never
+	// stored; the list API merges them in from the in-memory pending log store.
+	Pending bool `json:"pending,omitempty" gorm:"-"`
 }
 
 // don't use iota, avoid change log type value
@@ -107,6 +110,9 @@ func clickHouseLogOrder(prefix string) string {
 
 func assignDisplayLogIds(logs []*Log, startIdx int) {
 	for i := range logs {
+		if logs[i].Pending {
+			continue
+		}
 		logs[i].Id = startIdx + i + 1
 	}
 }
@@ -584,6 +590,11 @@ func GetAllLogs(filter LogFilter, startIdx int, num int) (logs []*Log, total int
 		}
 	}
 
+	pending := ListPendingLogs(filter, 0)
+	if startIdx == 0 {
+		logs = append(pending[:min(len(pending), num)], logs...)
+	}
+
 	return logs, total, err
 }
 
@@ -610,6 +621,12 @@ func GetUserLogs(userId int, filter LogFilter, startIdx int, num int) (logs []*L
 	}
 
 	formatUserLogs(logs, startIdx)
+
+	pending := ListPendingLogs(filter, userId)
+	formatUserLogs(pending, 0)
+	if startIdx == 0 {
+		logs = append(pending[:min(len(pending), num)], logs...)
+	}
 	return logs, total, err
 }
 

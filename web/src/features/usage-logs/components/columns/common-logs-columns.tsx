@@ -363,8 +363,13 @@ export function useCommonLogsColumns(
                 {formatTimestampToDate(timestamp)}
               </span>
               <StatusBadge
-                label={t(config.label)}
-                variant={config.color as StatusBadgeProps['variant']}
+                label={log.pending ? t('In Progress') : t(config.label)}
+                variant={
+                  log.pending
+                    ? 'info'
+                    : (config.color as StatusBadgeProps['variant'])
+                }
+                pulse={log.pending}
                 size='sm'
                 copyable={false}
                 className='-ml-1.5 !text-xs [&_span]:!text-xs'
@@ -769,6 +774,9 @@ export function useCommonLogsColumns(
         cell: ({ row }) => {
           const log = row.original
           if (!isDisplayableLogType(log.type)) return null
+          if (log.pending) {
+            return <span className='text-muted-foreground/60 text-xs'>—</span>
+          }
 
           const quota = row.getValue('quota') as number
           const other = parseLogOther(log.other)
@@ -798,6 +806,7 @@ export function useCommonLogsColumns(
               completionTokens={log.completion_tokens}
               frtMs={other?.frt}
               isStream={log.is_stream}
+              pending={log.pending}
             />
           )
         },

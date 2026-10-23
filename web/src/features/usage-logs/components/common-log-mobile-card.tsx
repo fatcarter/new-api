@@ -168,8 +168,9 @@ export function CommonLogMobileCard<TData>(props: {
         {fields.time.visible && (
           <div className='flex min-w-0 flex-col items-start justify-between gap-1'>
             <StatusBadge
-              label={t(config.label)}
-              variant={config.color as StatusVariant}
+              label={log.pending ? t('In Progress') : t(config.label)}
+              variant={log.pending ? 'info' : (config.color as StatusVariant)}
+              pulse={log.pending}
               copyable={false}
               showDot
               className='h-5 px-0 text-xs'
@@ -209,6 +210,7 @@ export function CommonLogMobileCard<TData>(props: {
                   completionTokens={log.completion_tokens}
                   frtMs={other?.frt}
                   isStream={log.is_stream}
+                  pending={log.pending}
                   indicator='dot'
                   compact
                   className='min-h-6 max-w-full min-w-0 items-center justify-end [&>div]:justify-end'

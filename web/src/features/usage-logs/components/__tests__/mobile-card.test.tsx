@@ -337,3 +337,21 @@ it('shows loading placeholders without displaying stale log fields', () => {
     screen.queryByRole('button', { name: /^Model:/ })
   ).not.toBeInTheDocument()
 })
+
+it('marks an in-flight log and shows its growing first-token and duration figures', () => {
+  renderLogs({
+    logs: [
+      {
+        ...log,
+        pending: true,
+        is_stream: true,
+        use_time: 12,
+        other: JSON.stringify({ frt: 12345 }),
+      },
+    ],
+  })
+
+  expect(screen.getByText('In Progress')).toBeVisible()
+  expect(screen.getByText('12.3s')).toBeVisible()
+  expect(screen.getByText('12.0s')).toBeVisible()
+})

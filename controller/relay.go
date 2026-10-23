@@ -151,6 +151,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 	}()
 
+	// The in-flight row disappears once the request is over; the final consume
+	// or error log has already been written by then.
+	defer model.FinishPendingLog(requestId)
+
 	generalSettings := operation_setting.GetGeneralSetting()
 	if relayFormat == types.RelayFormatClaude && relayInfo.IsStream && generalSettings.PingIntervalEnabled {
 		stopKeepAlive := helper.StartStreamKeepAlive(c, time.Duration(generalSettings.PingIntervalSeconds)*time.Second)
@@ -202,6 +206,25 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			break
 		}
 		c.Request.Body = io.NopCloser(bodyStorage)
+
+		requestPath := ""
+		if c.Request.URL != nil {
+			requestPath = c.Request.URL.Path
+		}
+		model.RegisterPendingLog(model.PendingLogParams{
+			RequestId:   requestId,
+			UserId:      relayInfo.UserId,
+			Username:    c.GetString("username"),
+			TokenId:     relayInfo.TokenId,
+			TokenName:   c.GetString("token_name"),
+			ModelName:   relayInfo.GetBillingModelName(),
+			ChannelId:   channel.Id,
+			ChannelName: channel.Name,
+			Group:       relayInfo.UsingGroup,
+			IsStream:    relayInfo.IsStream,
+			RequestPath: requestPath,
+			StartedAt:   relayInfo.StartTime.Unix(),
+		})
 
 		switch relayFormat {
 		case types.RelayFormatOpenAIRealtime:
