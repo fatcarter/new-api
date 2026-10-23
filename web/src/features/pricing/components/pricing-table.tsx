@@ -27,7 +27,11 @@ import {
   useDataTable,
 } from '@/components/data-table'
 
-import { DEFAULT_PRICING_PAGE_SIZE, DEFAULT_TOKEN_UNIT } from '../constants'
+import {
+  DEFAULT_PRICING_PAGE_SIZE,
+  DEFAULT_TOKEN_UNIT,
+  PRICING_PAGE_SIZE_OPTIONS,
+} from '../constants'
 import type { PricingModel, TokenUnit } from '../types'
 import { usePricingColumns } from './pricing-columns'
 
@@ -109,7 +113,12 @@ export function PricingTable(props: PricingTableProps) {
         )}
       />
 
-      {!isLoading && models.length > 0 && <DataTablePagination table={table} />}
+      {!isLoading && models.length > 0 && (
+        <DataTablePagination
+          table={table}
+          pageSizeOptions={PRICING_PAGE_SIZE_OPTIONS}
+        />
+      )}
     </div>
   )
 }

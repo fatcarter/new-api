@@ -7336,6 +7336,9 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Success Rate: High to Low": "Tỷ lệ thành công: Cao đến Thấp",
+    "TPS: High to Low": "TPS: Cao đến Thấp",
+    "Latency: Low to High": "Độ trễ: Thấp đến Cao"
   }
 }

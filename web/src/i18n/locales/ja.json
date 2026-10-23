@@ -7336,6 +7336,9 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "Success Rate: High to Low": "成功率：高い順",
+    "TPS: High to Low": "TPS：高い順",
+    "Latency: Low to High": "レイテンシ：低い順"
   }
 }

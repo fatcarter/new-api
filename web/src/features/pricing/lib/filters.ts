@@ -160,6 +160,16 @@ function getSortPrice(
   return calculateTokenPrice(model, kind, 1)
 }
 
+type SortPerfKind = 'success_rate' | 'avg_tps' | 'avg_latency_ms'
+
+const PERF_SORTS: Partial<
+  Record<SortOption, { kind: SortPerfKind; dir: 1 | -1 }>
+> = {
+  [SORT_OPTIONS.SUCCESS_RATE_HIGH]: { kind: 'success_rate', dir: -1 },
+  [SORT_OPTIONS.TPS_HIGH]: { kind: 'avg_tps', dir: -1 },
+  [SORT_OPTIONS.LATENCY_LOW]: { kind: 'avg_latency_ms', dir: 1 },
+}
+
 /**
  * Sort models by specified option
  */
@@ -168,6 +178,22 @@ export function sortModels(
   sortBy: string
 ): PricingModel[] {
   const sorted = [...models]
+
+  const perfSort = PERF_SORTS[sortBy as SortOption]
+  if (perfSort) {
+    // Models without measured performance stay last in both directions
+    sorted.sort((a, b) => {
+      const valueA = a.perf?.[perfSort.kind]
+      const valueB = b.perf?.[perfSort.kind]
+      const missingA = valueA === undefined || !Number.isFinite(valueA)
+      const missingB = valueB === undefined || !Number.isFinite(valueB)
+      if (missingA || missingB) {
+        return Number(missingA) - Number(missingB)
+      }
+      return perfSort.dir * (valueA - valueB)
+    })
+    return sorted
+  }
 
   const priceSort = PRICE_SORTS[sortBy as SortOption]
   if (priceSort) {
@@ -250,7 +276,7 @@ export function extractAllTags(models: PricingModel[]): string[] {
     }
   })
 
-  return Array.from(tagSet).sort((a, b) => a.localeCompare(b))
+  return [...tagSet].sort((a, b) => a.localeCompare(b))
 }
 
 /**

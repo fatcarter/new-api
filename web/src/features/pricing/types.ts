@@ -20,6 +20,8 @@ For commercial licensing, please contact support@quantumnous.com
 // Pricing Types
 // ----------------------------------------------------------------------------
 
+import type { PerfModelSummary } from '@/features/performance-metrics/types'
+
 export type PricingVendor = {
   id: number
   name: string
@@ -101,6 +103,8 @@ export type PricingModel = {
   input_modalities?: Modality[]
   output_modalities?: Modality[]
   capabilities?: ModelCapability[]
+  /** Per-model performance summary merged into the pricing response. */
+  perf?: PerfModelSummary
 }
 
 /** Input/output modalities supported by a model. */
@@ -130,6 +134,7 @@ export type PricingData = {
   usable_group: Record<string, { desc: string; ratio: number }>
   supported_endpoint: Record<string, string>
   auto_groups: string[]
+  perf_metrics?: Record<string, PerfModelSummary>
 }
 
 export type TokenUnit = 'M' | 'K'

@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type TFunction } from 'i18next'
+import type { TFunction } from 'i18next'
 
 import type { TokenUnit } from './types'
 
@@ -27,6 +27,9 @@ import type { TokenUnit } from './types'
 /** Sort options for pricing models */
 export const SORT_OPTIONS = {
   NAME: 'name',
+  SUCCESS_RATE_HIGH: 'success-rate-high',
+  TPS_HIGH: 'tps-high',
+  LATENCY_LOW: 'latency-low',
   INPUT_PRICE_LOW: 'input-price-low',
   INPUT_PRICE_HIGH: 'input-price-high',
   OUTPUT_PRICE_LOW: 'output-price-low',
@@ -40,6 +43,9 @@ export type SortOption = (typeof SORT_OPTIONS)[keyof typeof SORT_OPTIONS]
 export function getSortLabels(t: TFunction): Record<SortOption, string> {
   return {
     [SORT_OPTIONS.NAME]: t('Name'),
+    [SORT_OPTIONS.SUCCESS_RATE_HIGH]: t('Success Rate: High to Low'),
+    [SORT_OPTIONS.TPS_HIGH]: t('TPS: High to Low'),
+    [SORT_OPTIONS.LATENCY_LOW]: t('Latency: Low to High'),
     [SORT_OPTIONS.INPUT_PRICE_LOW]: t('Input Price: Low to High'),
     [SORT_OPTIONS.INPUT_PRICE_HIGH]: t('Input Price: High to Low'),
     [SORT_OPTIONS.OUTPUT_PRICE_LOW]: t('Output Price: Low to High'),
@@ -153,3 +159,6 @@ export type ViewMode = (typeof VIEW_MODES)[keyof typeof VIEW_MODES]
 
 /** Default page size for pricing table */
 export const DEFAULT_PRICING_PAGE_SIZE = 20
+
+/** Page size options for the pricing model list */
+export const PRICING_PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 1000] as const

@@ -273,6 +273,63 @@ func QuerySummaryAll(hours int, groups []string, recentModels ...string) (Summar
 		recentSeries[name] = points[max(0, len(points)-recentSuccessSampleLimit):]
 	}
 
+	return buildSummaryResult(modelBuckets, recentSeries, startTs, endTs), nil
+}
+
+// QuerySummaryAllWithRecentSeries returns summaries and recent success series
+// for every model with traffic in the history window. Unlike QuerySummaryAll,
+// it never looks models up one by one, so the cost stays constant for a
+// catalog of any size; the pricing response embeds it for every listed model.
+func QuerySummaryAllWithRecentSeries(hours int, groups []string) (SummaryAllResult, error) {
+	now := time.Now()
+	startTs, endTs := queryWindow(now, hours)
+	recentStartTs, _ := queryWindow(now, recentSuccessHistoryHours)
+	allowedGroups := allowedGroupSet(groups)
+
+	rows, err := model.GetPerfMetricsSummaryBucketsAll(recentStartTs, endTs, groups)
+	if err != nil {
+		return SummaryAllResult{}, err
+	}
+	modelBuckets := make(map[string]map[int64]counters, len(rows))
+	for _, row := range rows {
+		mergeModelBucket(modelBuckets, row.ModelName, row.BucketTs, counters{
+			requestCount:   row.RequestCount,
+			successCount:   row.SuccessCount,
+			totalLatencyMs: row.TotalLatencyMs,
+			outputTokens:   row.OutputTokens,
+			generationMs:   row.GenerationMs,
+		})
+	}
+
+	hotBuckets.Range(func(key, value any) bool {
+		k := key.(bucketKey)
+		if k.bucketTs < recentStartTs || k.bucketTs > endTs {
+			return true
+		}
+		if allowedGroups != nil {
+			if _, ok := allowedGroups[k.group]; !ok {
+				return true
+			}
+		}
+		mergeModelBucket(modelBuckets, k.model, k.bucketTs, value.(*atomicBucket).snapshot())
+		return true
+	})
+
+	recentSeries := make(map[string][]SuccessRatePoint, len(modelBuckets))
+	for name, buckets := range modelBuckets {
+		points := recentSuccessSeries(buckets)
+		if len(points) == 0 {
+			continue
+		}
+		recentSeries[name] = points[max(0, len(points)-recentSuccessSampleLimit):]
+	}
+
+	return buildSummaryResult(modelBuckets, recentSeries, startTs, endTs), nil
+}
+
+// buildSummaryResult summarizes the buckets over each model's status sample
+// hours and aggregates them into the window summary.
+func buildSummaryResult(modelBuckets map[string]map[int64]counters, recentSeries map[string][]SuccessRatePoint, startTs int64, endTs int64) SummaryAllResult {
 	// Requested models are summarized over the same hours as their status samples.
 	totals := map[string]counters{}
 	for name, buckets := range modelBuckets {
@@ -322,7 +379,7 @@ func QuerySummaryAll(hours int, groups []string, recentModels ...string) (Summar
 	return SummaryAllResult{
 		Summary: summarize(all), WindowStart: startTs, WindowEnd: endTs,
 		Models: models, RecentSuccessSeries: recentSeries,
-	}, nil
+	}
 }
 
 func mergeModelTotals(totals map[string]counters, modelName string, value counters) {

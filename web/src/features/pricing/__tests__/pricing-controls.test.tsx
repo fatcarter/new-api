@@ -197,6 +197,25 @@ describe('pricing controls', () => {
     expect(props.onSortChange).toHaveBeenCalledWith('input-price-low')
   })
 
+  it('selects performance sorting from the shared dropdown', async () => {
+    const props = toolbarProps()
+    const user = userEvent.setup()
+    render(<PricingToolbar {...props} />)
+    await user.click(screen.getByRole('button', { name: 'Name' }))
+    await user.click(
+      screen.getByRole('menuitem', { name: 'Success Rate: High to Low' })
+    )
+    expect(props.onSortChange).toHaveBeenCalledWith('success-rate-high')
+    await user.click(screen.getByRole('button', { name: 'Name' }))
+    await user.click(screen.getByRole('menuitem', { name: 'TPS: High to Low' }))
+    expect(props.onSortChange).toHaveBeenCalledWith('tps-high')
+    await user.click(screen.getByRole('button', { name: 'Name' }))
+    await user.click(
+      screen.getByRole('menuitem', { name: 'Latency: Low to High' })
+    )
+    expect(props.onSortChange).toHaveBeenCalledWith('latency-low')
+  })
+
   it('opens mobile filters from the left, selects a group, and restores focus on close', async () => {
     const props = toolbarProps()
     const user = userEvent.setup()

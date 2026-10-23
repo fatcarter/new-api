@@ -124,3 +124,55 @@ describe('price sorting', () => {
     }
   )
 })
+
+describe('performance sorting', () => {
+  const perfModels = [
+    pricingModel('slow-reliable', {
+      perf: {
+        model_name: 'slow-reliable',
+        avg_latency_ms: 3200,
+        avg_tps: 20,
+        success_rate: 99.9,
+      },
+    }),
+    pricingModel('fast-flaky', {
+      perf: {
+        model_name: 'fast-flaky',
+        avg_latency_ms: 400,
+        avg_tps: 120,
+        success_rate: 80,
+      },
+    }),
+    pricingModel('balanced', {
+      perf: {
+        model_name: 'balanced',
+        avg_latency_ms: 1500,
+        avg_tps: 60,
+        success_rate: 95,
+      },
+    }),
+    pricingModel('no-metrics', {}),
+  ]
+
+  test.each([
+    [
+      SORT_OPTIONS.SUCCESS_RATE_HIGH,
+      ['slow-reliable', 'balanced', 'fast-flaky', 'no-metrics'],
+    ],
+    [
+      SORT_OPTIONS.TPS_HIGH,
+      ['fast-flaky', 'balanced', 'slow-reliable', 'no-metrics'],
+    ],
+    [
+      SORT_OPTIONS.LATENCY_LOW,
+      ['fast-flaky', 'balanced', 'slow-reliable', 'no-metrics'],
+    ],
+  ])(
+    '%s orders models by their merged performance metrics and keeps models without metrics last',
+    (sortBy, expected) => {
+      expect(sortModels(perfModels, sortBy).map((m) => m.model_name)).toEqual(
+        expected
+      )
+    }
+  )
+})

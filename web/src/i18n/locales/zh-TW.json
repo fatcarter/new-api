@@ -7336,6 +7336,9 @@
     "Zhipu": "智譜",
     "Zhipu GLM": "智譜GLM",
     "Zhipu V4": "智譜 V4",
-    "Zoom": "縮放"
+    "Zoom": "縮放",
+    "Success Rate: High to Low": "成功率：從高到低",
+    "TPS: High to Low": "TPS：從高到低",
+    "Latency: Low to High": "延遲：從低到高"
   }
 }

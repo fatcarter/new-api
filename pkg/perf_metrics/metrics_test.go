@@ -322,6 +322,23 @@ func TestPerformanceAggregationAndFlush(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, points, persisted.RecentSuccessSeries["history-model"])
 				assert.Equal(t, history.RecentSuccessSeries["history-hot"], persisted.RecentSuccessSeries["history-hot"])
+
+				catalog, err := QuerySummaryAllWithRecentSeries(24, groups)
+				require.NoError(t, err)
+				catalogSummaries := lo.KeyBy(catalog.Models, func(m ModelSummary) string { return m.ModelName })
+				for _, name := range []string{"history-model", "history-idle", "history-hot"} {
+					assert.Equal(t, summaries[name].RequestCount, catalogSummaries[name].RequestCount, name)
+					assert.Equal(t, summaries[name].AvgLatencyMs, catalogSummaries[name].AvgLatencyMs, name)
+					assert.Equal(t, summaries[name].SuccessRate, catalogSummaries[name].SuccessRate, name)
+					assert.Equal(t, summaries[name].AvgTps, catalogSummaries[name].AvgTps, name)
+					assert.Equal(t, history.RecentSuccessSeries[name], catalog.RecentSuccessSeries[name], name)
+				}
+				assert.NotContains(t, catalogSummaries, "history-hidden")
+				assert.Empty(t, catalog.RecentSuccessSeries["history-hidden"])
+				deniedCatalog, err := QuerySummaryAllWithRecentSeries(24, []string{})
+				require.NoError(t, err)
+				assert.Empty(t, deniedCatalog.Models)
+				assert.Empty(t, deniedCatalog.RecentSuccessSeries)
 			})
 
 			t.Run("recent history stops at the 7 day boundary even with fewer than 24 samples", func(t *testing.T) {

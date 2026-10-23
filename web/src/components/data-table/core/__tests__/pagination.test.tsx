@@ -30,7 +30,11 @@ import { DataTablePagination } from '../pagination'
 const rows = [{ id: 1 }, { id: 2 }, { id: 3 }]
 const emptyRows: { id: number }[] = []
 
-function Fixture(props: { empty?: boolean; compact?: boolean }) {
+function Fixture(props: {
+  empty?: boolean
+  compact?: boolean
+  pageSizeOptions?: readonly number[]
+}) {
   const table = useReactTable({
     data: props.empty ? emptyRows : rows,
     columns: [{ accessorKey: 'id' }],
@@ -38,7 +42,13 @@ function Fixture(props: { empty?: boolean; compact?: boolean }) {
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageIndex: 0, pageSize: 2 } },
   })
-  return <DataTablePagination table={table} compact={props.compact} />
+  return (
+    <DataTablePagination
+      table={table}
+      compact={props.compact}
+      pageSizeOptions={props.pageSizeOptions}
+    />
+  )
 }
 it('moves between pages in compact mode and disables the boundary actions', async () => {
   const user = userEvent.setup()
@@ -64,4 +74,13 @@ it('shows a valid empty page with navigation disabled', () => {
 it('keeps page size selection available in the default layout', () => {
   render(<Fixture />)
   expect(screen.getByRole('combobox')).toBeVisible()
+})
+it('offers custom page size options and applies the selected size', async () => {
+  const user = userEvent.setup()
+  render(<Fixture pageSizeOptions={[10, 20, 50, 100, 1000]} />)
+  await user.click(screen.getByRole('combobox'))
+  expect(screen.queryByRole('option', { name: '30' })).not.toBeInTheDocument()
+  await user.click(await screen.findByRole('option', { name: '1000' }))
+  expect(screen.getByRole('combobox')).toHaveTextContent('1000')
+  expect(screen.getByRole('button', { name: 'Go to next page' })).toBeDisabled()
 })

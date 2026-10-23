@@ -7336,6 +7336,9 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Success Rate: High to Low": "Taux de réussite : du plus élevé au plus bas",
+    "TPS: High to Low": "TPS : du plus élevé au plus bas",
+    "Latency: Low to High": "Latence : du plus bas au plus élevé"
   }
 }

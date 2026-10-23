@@ -16,19 +16,32 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { getPerfMetricsSummary } from '@/features/performance-metrics/api'
-import { requireServerSuccess } from '@/lib/server-error-message'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
-import { DEFAULT_PRICING_PAGE_SIZE, DEFAULT_TOKEN_UNIT } from '../constants'
+import {
+  DEFAULT_PRICING_PAGE_SIZE,
+  DEFAULT_TOKEN_UNIT,
+  PRICING_PAGE_SIZE_OPTIONS,
+} from '../constants'
 import type { PricingModel, TokenUnit } from '../types'
 import { ModelCard } from './model-card'
-import type { ModelPerfBadgeData } from './model-perf-badge'
+
+const PAGE_SIZE_ITEMS = PRICING_PAGE_SIZE_OPTIONS.map((size) => ({
+  value: `${size}`,
+  label: size,
+}))
 
 export interface ModelCardGridProps {
   models: PricingModel[]
@@ -45,7 +58,7 @@ export const ModelCardGrid = memo(function ModelCardGrid(
 ) {
   const { t } = useTranslation()
   const [page, setPage] = useState(1)
-  const pageSize = DEFAULT_PRICING_PAGE_SIZE
+  const [pageSize, setPageSize] = useState(DEFAULT_PRICING_PAGE_SIZE)
   const tokenUnit = props.tokenUnit ?? DEFAULT_TOKEN_UNIT
   const totalPages = Math.max(1, Math.ceil(props.models.length / pageSize))
   const currentPage = Math.min(page, totalPages)
@@ -54,38 +67,6 @@ export const ModelCardGrid = memo(function ModelCardGrid(
     const start = (currentPage - 1) * pageSize
     return props.models.slice(start, start + pageSize)
   }, [currentPage, pageSize, props.models])
-  const recentModels = pagedModels.map((model) => model.model_name || '')
-  const perfQuery = useQuery({
-    queryKey: ['perf-metrics-summary', 24, recentModels],
-    queryFn: async () =>
-      requireServerSuccess(await getPerfMetricsSummary(24, recentModels)),
-    enabled: recentModels.length > 0,
-    staleTime: 60 * 1000,
-    retry: false,
-  })
-
-  const perfMap = useMemo(() => {
-    const map = new Map<string, ModelPerfBadgeData>()
-    for (const model of perfQuery.data?.data?.models ?? []) {
-      map.set(model.model_name, {
-        ...model,
-        window_start: perfQuery.data?.data.window_start,
-        window_end: perfQuery.data?.data.window_end,
-      })
-    }
-    for (const [name, series] of Object.entries(
-      perfQuery.data?.data?.recent_success_series ?? {}
-    )) {
-      map.set(name, {
-        avg_latency_ms: Number.NaN,
-        avg_tps: Number.NaN,
-        success_rate: Number.NaN,
-        ...map.get(name),
-        recent_success_series: series,
-      })
-    }
-    return map
-  }, [perfQuery.data])
 
   if (props.models.length === 0) {
     return null
@@ -103,20 +84,46 @@ export const ModelCardGrid = memo(function ModelCardGrid(
             usdExchangeRate={props.usdExchangeRate}
             showRechargePrice={props.showRechargePrice}
             selectedGroup={props.selectedGroup}
-            perf={perfMap.get(model.model_name || '')}
+            perf={model.perf}
             onClick={props.onModelClick}
           />
         ))}
       </div>
 
-      {totalPages > 1 && (
-        <div className='text-muted-foreground flex flex-col items-center justify-between gap-3 border-t px-4 py-3 text-sm sm:flex-row'>
-          <p className='text-muted-foreground'>
-            {t('Page {{current}} of {{total}}', {
-              current: currentPage,
-              total: totalPages,
-            })}
-          </p>
+      <div className='text-muted-foreground flex flex-col items-center justify-between gap-3 border-t px-4 py-3 text-sm sm:flex-row'>
+        <p className='text-muted-foreground'>
+          {t('Page {{current}} of {{total}}', {
+            current: currentPage,
+            total: totalPages,
+          })}
+        </p>
+        <div className='flex flex-wrap items-center justify-center gap-3'>
+          <div className='flex items-center gap-1.5'>
+            <span className='text-muted-foreground/80 text-sm font-medium whitespace-nowrap'>
+              {t('Rows per page')}
+            </span>
+            <Select
+              items={PAGE_SIZE_ITEMS}
+              value={`${pageSize}`}
+              onValueChange={(value) => {
+                setPageSize(Number(value))
+                setPage(1)
+              }}
+            >
+              <SelectTrigger className='text-foreground h-8 w-[64px] font-medium tabular-nums sm:w-[70px]'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent side='top' alignItemWithTrigger={false}>
+                <SelectGroup>
+                  {PRICING_PAGE_SIZE_OPTIONS.map((size) => (
+                    <SelectItem key={size} value={`${size}`}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
           <div className='flex items-center gap-2'>
             <Button
               type='button'
@@ -144,7 +151,7 @@ export const ModelCardGrid = memo(function ModelCardGrid(
             </Button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 })

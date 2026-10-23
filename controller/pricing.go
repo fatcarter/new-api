@@ -2,9 +2,11 @@ package controller
 
 import (
 	"maps"
+	"slices"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
@@ -64,6 +66,22 @@ func GetPricing(c *gin.Context) {
 		}
 	}
 
+	// Per-model performance is scoped to the same groups as the visible catalog.
+	perfMetrics := map[string]perfmetrics.ModelSummary{}
+	if summary, err := perfmetrics.QuerySummaryAllWithRecentSeries(24, slices.Collect(maps.Keys(usableGroup))); err != nil {
+		common.SysError("failed to summarize performance metrics for pricing: " + err.Error())
+	} else {
+		for _, modelSummary := range summary.Models {
+			perfMetrics[modelSummary.ModelName] = modelSummary
+		}
+	}
+	pricingPerfMetrics := make(map[string]perfmetrics.ModelSummary, len(pricing))
+	for _, item := range pricing {
+		if modelSummary, ok := perfMetrics[item.ModelName]; ok {
+			pricingPerfMetrics[item.ModelName] = modelSummary
+		}
+	}
+
 	c.JSON(200, gin.H{
 		"success":            true,
 		"data":               pricing,
@@ -73,6 +91,7 @@ func GetPricing(c *gin.Context) {
 		"supported_endpoint": model.GetSupportedEndpointMap(),
 		"auto_groups":        service.GetUserAutoGroup(group),
 		"pricing_version":    "a42d372ccf0b5dd13ecf71203521f9d2",
+		"perf_metrics":       pricingPerfMetrics,
 	})
 }
 
